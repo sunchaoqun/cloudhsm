@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CloudHSM Demo — 签名 / 验签 / 加解密</title>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --line: #334155;
+      --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+      --ok: #22c55e; --bad: #ef4444; --btn: #2563eb; --btn2: #475569;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+    }
+    header {
+      padding: 20px 28px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+    .backend {
+      font-size: 13px; color: var(--muted);
+      background: var(--card); border: 1px solid var(--line);
+      padding: 6px 12px; border-radius: 999px;
+    }
+    .backend b { color: var(--accent); }
+    main { max-width: 920px; margin: 0 auto; padding: 24px 20px 60px; display: grid; gap: 20px; }
+    .card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; padding: 20px;
+    }
+    .card h2 { margin: 0 0 4px; font-size: 15px; }
+    .card p.hint { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+    textarea, input[type=text] {
+      width: 100%; background: #0b1220; color: var(--text);
+      border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+      font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 13px; resize: vertical;
+    }
+    textarea { min-height: 64px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; align-items: center; }
+    button {
+      background: var(--btn); color: #fff; border: none;
+      padding: 9px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;
+    }
+    button.secondary { background: var(--btn2); }
+    button:hover { filter: brightness(1.1); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .result { margin-top: 14px; font-size: 13px; min-height: 20px; word-break: break-all; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; }
+    .badge.ok { background: rgba(34,197,94,.15); color: var(--ok); }
+    .badge.bad { background: rgba(239,68,68,.15); color: var(--bad); }
+    .err { color: var(--bad); }
+    code { color: var(--accent); }
+    .foot { text-align: center; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CloudHSM Demo · 签名 / 验签 / 加解密</h1>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <div class="backend" id="acctBadge" style="display:none">Account：<b id="account"></b></div>
+      <div class="backend">当前后端：<b id="backend">加载中…</b></div>
+    </div>
+  </header>
+
+  <main>
+    <div id="capBanner" class="card" style="display:none; border-color:#f59e0b; color:#f59e0b; font-size:13px;"></div>
+
+    <!-- 签名 / 验签 -->
+    <section class="card" id="signCard" style="display:none">
+      <h2>① 签名 / 验签</h2>
+      <p class="hint">输入明文 → 点“签名”生成签名 → 点“验签”校验。改一下明文再验签会失败（演示防篡改）。</p>
+
+      <label>明文</label>
+      <textarea id="signText">Hello CloudHSM</textarea>
+
+      <label>签名结果 (Base64)</label>
+      <textarea id="signature" placeholder="点击“签名”后自动填充"></textarea>
+
+      <div class="row">
+        <button id="btnSign" onclick="doSign()">签名</button>
+        <button id="btnVerify" class="secondary" onclick="doVerify()">验签</button>
+        <span id="signResult" class="result"></span>
+      </div>
+    </section>
+
+    <!-- 加密 / 解密 -->
+    <section class="card" id="encCard" style="display:none">
+      <h2>② 加密 / 解密</h2>
+      <p class="hint">输入明文 → 点“加密”得到密文 → 点“解密”还原，验证与原文一致。</p>
+
+      <label>明文</label>
+      <textarea id="encText">Secret payload 机密数据</textarea>
+
+      <label>密文 (Base64)</label>
+      <textarea id="ciphertext" placeholder="点击“加密”后自动填充"></textarea>
+
+      <label>解密结果</label>
+      <textarea id="decrypted" placeholder="点击“解密”后自动填充" readonly></textarea>
+
+      <div class="row">
+        <button id="btnEncrypt" onclick="doEncrypt()">加密</button>
+        <button id="btnDecrypt" class="secondary" onclick="doDecrypt()">解密</button>
+        <span id="encResult" class="result"></span>
+      </div>
+    </section>
+
+    <!-- 非对称加解密 (RSA) -->
+    <section class="card" id="asymCard" style="display:none">
+      <h2>③ 非对称加解密 (RSA)</h2>
+      <p class="hint">公钥加密 → 私钥解密（RSA-OAEP）。注意 RSA 只能加密短数据（RSA-2048 约 ≤190 字节），太长会报错。</p>
+
+      <label>明文（短）</label>
+      <textarea id="asymText">RSA short secret</textarea>
+
+      <label>密文 (Base64)</label>
+      <textarea id="asymCipher" placeholder="点击“加密”后自动填充"></textarea>
+
+      <label>解密结果</label>
+      <textarea id="asymDecrypted" placeholder="点击“解密”后自动填充" readonly></textarea>
+
+      <div class="row">
+        <button id="btnEncAsym" onclick="doEncryptAsym()">加密(公钥)</button>
+        <button id="btnDecAsym" class="secondary" onclick="doDecryptAsym()">解密(私钥)</button>
+        <span id="asymResult" class="result"></span>
+      </div>
+    </section>
+
+    <p class="foot">切换后端：以不同 profile 启动应用（<code>kms</code> / <code>kms-cks</code> / <code>jce</code> / <code>pkcs11</code>）。接口 <code>/api/*</code> 保持一致；按钮按后端能力自动显示。</p>
+  </main>
+
+  <script>
+    const b64encode = (str) => btoa(unescape(encodeURIComponent(str)));
+    const b64decode = (b64) => decodeURIComponent(escape(atob(b64)));
+
+    async function api(path, body) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
+    }
+
+    async function loadBackend() {
+      try {
+        const res = await fetch('/api/info');
+        const data = await res.json();
+        document.getElementById('backend').textContent = data.backend || '未知';
+        applyCapabilities(data.capabilities || []);
+        applyIdentity(data.identity);
+      } catch (e) {
+        document.getElementById('backend').textContent = '获取失败';
+      }
+    }
+
+    // 根据后端能力动态显示/隐藏签名区与加解密区，避免展示后端不支持的操作
+    function applyCapabilities(caps) {
+      const has = (c) => caps.includes(c);
+      const canSign = has('sign') || has('verify');
+      const canEnc = has('encrypt') || has('decrypt');
+
+      document.getElementById('signCard').style.display = canSign ? '' : 'none';
+      document.getElementById('encCard').style.display = canEnc ? '' : 'none';
+      document.getElementById('asymCard').style.display = has('encryptAsym') ? '' : 'none';
+      document.getElementById('btnSign').style.display = has('sign') ? '' : 'none';
+      document.getElementById('btnVerify').style.display = has('verify') ? '' : 'none';
+      document.getElementById('btnEncrypt').style.display = has('encrypt') ? '' : 'none';
+      document.getElementById('btnDecrypt').style.display = has('decrypt') ? '' : 'none';
+
+      const banner = document.getElementById('capBanner');
+      if (caps.length === 0) {
+        banner.style.display = '';
+        banner.textContent = '⚠️ 未激活任何后端，请以某个 profile 启动：kms / kms-cks / jce / pkcs11';
+      } else if (!canSign) {
+        banner.style.display = '';
+        banner.textContent = '说明：当前后端仅支持加解密，不支持签名（例如 KMS Custom Key Store 只支持对称密钥）。签名请用 jce / pkcs11 或通用 kms 后端。';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+
+    // 显示当前调用的 AWS account / 身份（跨账号演示时能一眼看出是哪个账号）
+    function applyIdentity(identity) {
+      const badge = document.getElementById('acctBadge');
+      if (identity && identity.account) {
+        document.getElementById('account').textContent = identity.account;
+        badge.title = identity.arn || '';
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function show(id, html) { document.getElementById(id).innerHTML = html; }
+    function showErr(id, msg) { show(id, '<span class="err">✗ ' + msg + '</span>'); }
+
+    async function doSign() {
+      show('signResult', '签名中…');
+      try {
+        const data = await api('/api/sign', { dataBase64: b64encode(document.getElementById('signText').value) });
+        document.getElementById('signature').value = data.resultBase64;
+        show('signResult', '<span class="badge ok">✓ 已签名</span>');
+      } catch (e) { showErr('signResult', e.message); }
+    }
+
+    async function doVerify() {
+      show('signResult', '验签中…');
+      try {
+        const data = await api('/api/verify', {
+          dataBase64: b64encode(document.getElementById('signText').value),
+          signatureBase64: document.getElementById('signature').value
+        });
+        show('signResult', data.valid
+          ? '<span class="badge ok">✓ 验签通过</span>'
+          : '<span class="badge bad">✗ 验签失败（签名与明文不匹配）</span>');
+      } catch (e) { showErr('signResult', e.message); }
+    }
+
+    async function doEncrypt() {
+      show('encResult', '加密中…');
+      try {
+        const data = await api('/api/encrypt', { dataBase64: b64encode(document.getElementById('encText').value) });
+        document.getElementById('ciphertext').value = data.resultBase64;
+        document.getElementById('decrypted').value = '';
+        show('encResult', '<span class="badge ok">✓ 已加密</span>');
+      } catch (e) { showErr('encResult', e.message); }
+    }
+
+    async function doDecrypt() {
+      show('encResult', '解密中…');
+      try {
+        const data = await api('/api/decrypt', { dataBase64: document.getElementById('ciphertext').value });
+        const plain = b64decode(data.resultBase64);
+        document.getElementById('decrypted').value = plain;
+        const match = plain === document.getElementById('encText').value;
+        show('encResult', match
+          ? '<span class="badge ok">✓ 解密成功，与原文一致</span>'
+          : '<span class="badge ok">✓ 已解密</span>');
+      } catch (e) { showErr('encResult', e.message); }
+    }
+
+    async function doEncryptAsym() {
+      show('asymResult', '加密中…');
+      try {
+        const data = await api('/api/encrypt-asym', { dataBase64: b64encode(document.getElementById('asymText').value) });
+        document.getElementById('asymCipher').value = data.resultBase64;
+        document.getElementById('asymDecrypted').value = '';
+        show('asymResult', '<span class="badge ok">✓ 已用公钥加密</span>');
+      } catch (e) { showErr('asymResult', e.message); }
+    }
+
+    async function doDecryptAsym() {
+      show('asymResult', '解密中…');
+      try {
+        const data = await api('/api/decrypt-asym', { dataBase64: document.getElementById('asymCipher').value });
+        const plain = b64decode(data.resultBase64);
+        document.getElementById('asymDecrypted').value = plain;
+        const match = plain === document.getElementById('asymText').value;
+        show('asymResult', match
+          ? '<span class="badge ok">✓ 私钥解密成功，与原文一致</span>'
+          : '<span class="badge ok">✓ 已解密</span>');
+      } catch (e) { showErr('asymResult', e.message); }
+    }
+
+    loadBackend();
+  </script>
+</body>
+</html>

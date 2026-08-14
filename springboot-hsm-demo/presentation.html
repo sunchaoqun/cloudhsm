@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AWS CloudHSM 集成方案 · 客户介绍</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#111a2e; --line:#26324a; --text:#e8eef7; --muted:#9fb0c8;
+    --accent:#38bdf8; --accent2:#a78bfa; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    --code:#0a1526;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--text); overflow:hidden;
+  }
+  .deck{height:100vh; width:100vw; position:relative;}
+  .slide{
+    position:absolute; inset:0; padding:56px 72px; display:none;
+    flex-direction:column; animation:fade .35s ease;
+    overflow:auto;
+  }
+  .slide.active{display:flex;}
+  @keyframes fade{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+  h1{font-size:44px; line-height:1.2; margin-bottom:8px;}
+  h2{font-size:30px; margin-bottom:20px; color:#fff; display:flex; align-items:center; gap:12px;}
+  h2 .num{font-size:16px; color:var(--accent); border:1px solid var(--accent); border-radius:8px; padding:2px 10px;}
+  .sub{color:var(--muted); font-size:18px; margin-bottom:24px;}
+  ul{list-style:none; display:flex; flex-direction:column; gap:14px;}
+  li{font-size:19px; line-height:1.5; padding-left:26px; position:relative;}
+  li::before{content:"▹"; color:var(--accent); position:absolute; left:0;}
+  .grid{display:grid; gap:16px; margin-top:8px;}
+  .g2{grid-template-columns:1fr 1fr;} .g3{grid-template-columns:1fr 1fr 1fr;} .g4{grid-template-columns:repeat(4,1fr);}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px;}
+  .card h3{font-size:19px; margin-bottom:10px; color:#fff;}
+  .card p{color:var(--muted); font-size:15px; line-height:1.55;}
+  .tag{display:inline-block; font-size:12px; padding:3px 9px; border-radius:999px; margin-right:6px; margin-top:6px;}
+  .tag.ok{background:rgba(34,197,94,.15); color:var(--ok);}
+  .tag.no{background:rgba(239,68,68,.15); color:var(--bad);}
+  .tag.info{background:rgba(56,189,248,.15); color:var(--accent);}
+  table{width:100%; border-collapse:collapse; font-size:16px; margin-top:8px;}
+  th,td{border:1px solid var(--line); padding:12px 14px; text-align:left;}
+  th{background:#16223a; color:#fff;}
+  td .y{color:var(--ok); font-weight:600;} td .n{color:var(--bad); font-weight:600;}
+  code,.mono{font-family:"SF Mono",ui-monospace,Menlo,monospace;}
+  pre{background:var(--code); border:1px solid var(--line); border-radius:10px; padding:16px 18px;
+      font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:14px; color:#cfe3ff; overflow:auto; margin-top:10px; line-height:1.5;}
+  .kbd{color:var(--accent2);}
+  .center{align-items:center; justify-content:center; text-align:center;}
+  .flow{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:16px; margin-top:14px;}
+  .flow .node{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px;}
+  .flow .arrow{color:var(--accent); font-size:22px;}
+  .footer{position:absolute; bottom:20px; right:32px; color:var(--muted); font-size:13px;}
+  .brandbar{position:absolute; top:0; left:0; height:5px; width:100%;
+            background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .pageno{position:absolute; bottom:20px; left:32px; color:var(--muted); font-size:13px;}
+  .big{font-size:22px;} .warn{color:var(--warn);} .ok{color:var(--ok);} .muted{color:var(--muted);}
+  .pill{display:inline-block; background:#16223a; border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-size:14px; margin:4px 6px 0 0;}
+  .hint{position:absolute; bottom:18px; left:50%; transform:translateX(-50%); color:#54627c; font-size:12px;}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 封面 -->
+  <section class="slide active center">
+    <div class="brandbar"></div>
+    <h1>AWS CloudHSM 集成方案</h1>
+    <p class="sub big">一套 Spring Boot 应用，四种密钥后端，统一密码服务</p>
+    <div class="flow">
+      <span class="pill">AWS KMS</span>
+      <span class="pill">KMS Custom Key Store</span>
+      <span class="pill">CloudHSM JCE</span>
+      <span class="pill">CloudHSM PKCS#11</span>
+    </div>
+    <p class="muted" style="margin-top:28px;">签名 / 验签 · 加密 / 解密 · 对称 + 非对称 · 跨账号</p>
+  </section>
+
+  <!-- 2 目标 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">01</span>方案目标</h2>
+    <p class="sub">用同一套接口，演示 CloudHSM 的多种接入方式与密码能力</p>
+    <ul>
+      <li><b>四种后端</b>：AWS KMS、KMS Custom Key Store（对接 CloudHSM）、CloudHSM JCE、CloudHSM PKCS#11</li>
+      <li><b>统一接口</b>：Controller 只依赖一个 <code>CryptoService</code>，切换后端只需换启动 profile，接口与前端不变</li>
+      <li><b>完整密码能力</b>：RSA 签名/验签、AES 对称加解密、RSA 非对称加解密</li>
+      <li><b>跨账号</b>：一个账号的应用，调用另一个账号 CloudHSM 里的密钥</li>
+      <li><b>可视化演示</b>：内置网页，点按钮即可演示，顶部显示当前后端与调用账号</li>
+    </ul>
+  </section>
+
+  <!-- 3 架构 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">02</span>整体架构</h2>
+    <p class="sub">前端 → REST → 统一接口 → 按 profile 选择后端实现 → 密钥运算在 HSM/KMS 内完成</p>
+    <div class="flow">
+      <span class="node">演示网页</span><span class="arrow">→</span>
+      <span class="node">REST /api/*</span><span class="arrow">→</span>
+      <span class="node">CryptoService（统一接口）</span><span class="arrow">→</span>
+      <span class="node" style="border-color:var(--accent)">四选一后端实现</span>
+    </div>
+    <div class="grid g4" style="margin-top:24px;">
+      <div class="card"><h3>kms</h3><p>AWS SDK v2，纯 Java，托管 KMS key</p></div>
+      <div class="card"><h3>kms-cks</h3><p>KMS Custom Key Store，运算落到 CloudHSM 集群</p></div>
+      <div class="card"><h3>jce</h3><p>CloudHSM JCE Provider，直连 HSM</p></div>
+      <div class="card"><h3>pkcs11</h3><p>JDK SunPKCS11 + CloudHSM .so</p></div>
+    </div>
+    <p class="muted" style="margin-top:20px;">前端按后端上报的 <code>capabilities</code> 动态显示可用操作，不支持的自动隐藏。</p>
+  </section>
+
+  <!-- 4 能力矩阵 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">03</span>四种后端能力对比</h2>
+    <table>
+      <tr><th>后端</th><th>签名/验签</th><th>对称加解密</th><th>非对称加解密</th><th>密钥位置</th></tr>
+      <tr><td><b>KMS</b>（通用）</td><td class="y">✔</td><td class="y">✔</td><td class="y">✔</td><td>AWS 托管</td></tr>
+      <tr><td><b>KMS Custom Key Store</b></td><td class="n">✘</td><td class="y">✔</td><td class="n">✘</td><td>CloudHSM（仅对称）</td></tr>
+      <tr><td><b>CloudHSM JCE</b></td><td class="y">✔</td><td class="y">✔</td><td class="y">✔</td><td>HSM 硬件</td></tr>
+      <tr><td><b>CloudHSM PKCS#11</b></td><td class="y">✔</td><td class="y">✔</td><td class="y">✔</td><td>HSM 硬件</td></tr>
+    </table>
+    <p class="muted" style="margin-top:18px;">
+      关键结论：<span class="warn">KMS Custom Key Store 只支持对称密钥，不能做签名/非对称</span>（官方限制）。
+      要用 CloudHSM 做签名/非对称，走 JCE 或 PKCS#11。
+    </p>
+  </section>
+
+  <!-- 5 KMS + 跨账号 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">04</span>KMS 与跨账号访问</h2>
+    <div class="grid g2">
+      <div class="card">
+        <h3>KMS Custom Key Store</h3>
+        <p>KMS 的 key 建在你的 CloudHSM 集群里，加解密运算在 HSM 硬件内完成，调用方用标准 KMS API，无感知。<br><br>
+        <span class="tag info">对称加解密</span><span class="tag no">不支持签名</span></p>
+      </div>
+      <div class="card">
+        <h3>跨账号（已验证）</h3>
+        <p>账号 A 的应用调用账号 B 的 CloudHSM key：<br>
+        ① Key 侧 <b>Key Policy</b> 放行账号 A<br>
+        ② 账号 A 侧 <b>IAM</b> 授权用该 key<br>
+        两道授权都满足即可，加解密实测通过。</p>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:16px;">页面顶部实时显示当前调用的 <b>AWS Account</b>，跨账号演示一目了然。</p>
+  </section>
+
+  <!-- 6 JCE -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">05</span>CloudHSM JCE Provider</h2>
+    <p class="sub">AWS 官方推荐的 Java 接入方式，功能最完整</p>
+    <ul>
+      <li>通过 CloudHSM 自家 JCE Provider 直连 HSM，密钥运算全部在硬件内完成，私钥永不出 HSM</li>
+      <li>完整支持：<b>RSA 签名/验签</b>、<b>AES-GCM 加解密</b>、<b>RSA-OAEP 非对称加解密</b></li>
+      <li>认证用 HSM 的 Crypto User 账号密码（非 AWS 凭证）</li>
+      <li>密钥按 label 引用；单 HSM 场景需关闭 key availability check</li>
+    </ul>
+    <p class="ok big" style="margin-top:20px;">✔ 四项密码操作全部验证通过</p>
+  </section>
+
+  <!-- 7 PKCS11 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">06</span>CloudHSM PKCS#11（标准接口）</h2>
+    <p class="sub">行业标准 PKCS#11，跨 HSM 厂商可移植；本方案用 JDK 内置 SunPKCS11 对接</p>
+    <ul>
+      <li><b>对称（AES）</b>：走标准 KeyStore，用 AES-CBC（SunPKCS11 与 CloudHSM 都稳定支持传入 IV）</li>
+      <li><b>非对称（RSA 签名/验签/加解密）</b>：CloudHSM 不在 HSM 存证书，SunPKCS11 的 KeyStore 因此看不到 RSA 私钥</li>
+      <li>解决：绕开 KeyStore，用底层 PKCS#11 <b>按 label 直接定位 key</b> 再包装成 JCA 密钥（不依赖证书）</li>
+    </ul>
+    <p class="ok big" style="margin-top:16px;">✔ 签名/验签、AES、RSA 非对称 全部打通</p>
+    <p class="muted" style="margin-top:8px;">注：Java 用 SunPKCS11 对接 CloudHSM 做 RSA 属社区方案；官方 Java 首选 JCE。</p>
+  </section>
+
+  <!-- 8 关键技术难点与解法 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">07</span>关键难点与解法</h2>
+    <table>
+      <tr><th>现象</th><th>根因</th><th>解法</th></tr>
+      <tr><td>KMS-CKS 不能签名</td><td>Custom Key Store 只支持对称密钥</td><td>签名走 JCE / PKCS#11</td></tr>
+      <tr><td>AES-GCM 解密失败</td><td>IV 由 HSM 在加密时生成，须先 doFinal 再取 IV</td><td>调整取 IV 时序，IV 前缀入密文</td></tr>
+      <tr><td>PKCS#11 找不到 RSA 私钥</td><td>CloudHSM 不存证书，SunPKCS11 靠证书配对</td><td>底层按 label 定位 key，绕开证书</td></tr>
+      <tr><td>PKCS#11 RSA-OAEP 报错</td><td>SunPKCS11 不认该 padding 写法</td><td>改用 RSA PKCS#1 padding</td></tr>
+      <tr><td>PKCS#11 AES-GCM init 失败</td><td>SunPKCS11 要 IV / CloudHSM 不让传 IV，冲突</td><td>PKCS#11 改用 AES-CBC</td></tr>
+    </table>
+  </section>
+
+  <!-- 9 演示 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">08</span>现场演示</h2>
+    <p class="sub">同一网页，切换 profile 即切换后端；按钮按能力自动显隐</p>
+    <pre># 通用 KMS
+--spring.profiles.active=<span class="kbd">kms</span>
+
+# KMS Custom Key Store（对接 CloudHSM，仅对称）
+--spring.profiles.active=<span class="kbd">kms-cks</span>
+
+# CloudHSM JCE（HSM 硬件，全功能）
+--spring.profiles.active=<span class="kbd">jce</span>
+
+# CloudHSM PKCS#11（标准接口，全功能）
+--spring.profiles.active=<span class="kbd">pkcs11</span></pre>
+    <p class="muted" style="margin-top:14px;">页面：① 签名/验签 &nbsp; ② 对称加解密 &nbsp; ③ 非对称加解密（RSA）</p>
+  </section>
+
+  <!-- 10 总结 -->
+  <section class="slide center">
+    <div class="brandbar"></div>
+    <h1>方案总结</h1>
+    <div class="grid g2" style="max-width:900px; margin-top:10px;">
+      <div class="card"><h3 class="ok">✔ 四种后端全部打通</h3><p>KMS / KMS-CKS / JCE / PKCS#11，统一接口、一键切换</p></div>
+      <div class="card"><h3 class="ok">✔ 跨账号验证</h3><p>Key Policy + IAM 双向授权，加解密实测成功</p></div>
+      <div class="card"><h3 class="ok">✔ 全密码能力</h3><p>签名/验签、对称、非对称，私钥不出 HSM</p></div>
+      <div class="card"><h3 class="ok">✔ 可视化演示</h3><p>内置网页，按能力动态呈现，含账号标识</p></div>
+    </div>
+    <p class="muted" style="margin-top:28px;">选型建议：Java 生产用 <b>JCE</b>；需跨厂商可移植用 <b>PKCS#11</b>；托管+对称场景用 <b>KMS / KMS-CKS</b>。</p>
+  </section>
+
+</div>
+
+<div class="pageno" id="pageno">1 / 10</div>
+<div class="footer">AWS CloudHSM 集成方案</div>
+<div class="hint">← → 或空格翻页 · F 全屏</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let idx = 0;
+  const pageno = document.getElementById('pageno');
+  function show(n){
+    idx = Math.max(0, Math.min(slides.length-1, n));
+    slides.forEach((s,i)=>s.classList.toggle('active', i===idx));
+    pageno.textContent = (idx+1) + ' / ' + slides.length;
+  }
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ show(idx+1); e.preventDefault(); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ show(idx-1); e.preventDefault(); }
+    else if(e.key==='Home'){ show(0); }
+    else if(e.key==='End'){ show(slides.length-1); }
+    else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+  });
+  document.addEventListener('click', e=>{ if(e.target.closest('a')) return; show(idx+1); });
+  show(0);
+</script>
+</body>
+</html>

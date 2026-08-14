@@ -1,0 +1,48 @@
+server:
+  port: 8064
+
+spring:
+  application:
+    name: springboot-hsm-demo
+  # 不指定 profile 时走兜底 NoOp，仅提示；实际用下面某个 profile 启动。
+
+# 三种后端共用的配置区。真实值用环境变量覆盖更安全（见各字段）。
+# profile 说明：
+#   kms      通用 KMS（能签名+加解密，签名用普通非对称 key）
+#   kms-cks  KMS Custom Key Store / CloudHSM key store（只加解密，不支持签名）
+#   jce      CloudHSM JCE Provider（HSM 硬件，签名+加解密）
+#   pkcs11   SunPKCS11 + CloudHSM .so（HSM 硬件，签名+加解密）
+hsm:
+  kms:
+    region: ${AWS_REGION:ap-southeast-1}
+    # 签名/验签用的非对称 key（RSA/EC），KeyUsage=SIGN_VERIFY。
+    # ⚠️ 必须是 KMS 普通（AWS 托管）的非对称 key。
+    #    不能用 CloudHSM Custom Key Store 的 key —— 该 key store 只支持对称密钥，不能签名。
+    #    要用 CloudHSM 硬件签名，请改用 jce / pkcs11 profile。
+    # 真实值示例: arn:aws:kms:ap-southeast-1:123456789012:key/xxxx
+    sign-key-id: ${KMS_SIGN_KEY_ID:}
+    signing-algorithm: ${KMS_SIGNING_ALGORITHM:RSASSA_PSS_SHA_256}
+    # 加解密用的对称 key（SYMMETRIC_DEFAULT）。
+    # ✅ 这个【可以】指向 CloudHSM Custom Key Store 的对称 key —— 加解密运算会在 CloudHSM 集群内完成。
+    encrypt-key-id: ${KMS_ENCRYPT_KEY_ID:}
+
+  jce:
+    user: ${HSM_USER:crypto_user}
+    password: ${HSM_PASSWORD:}
+    sign-key-label: ${JCE_SIGN_KEY_LABEL:demo-sign-key}
+    aes-key-label: ${JCE_AES_KEY_LABEL:demo-aes-key}
+    signature-algorithm: ${JCE_SIGNATURE_ALGORITHM:SHA256withRSA}
+
+  pkcs11:
+    library: ${PKCS11_LIBRARY:/opt/cloudhsm/lib/libcloudhsm_pkcs11.so}
+    # slotListIndex：第几个 slot（从 0），CloudHSM 取第一个即 0（不是 slot ID）
+    slot: ${PKCS11_SLOT:0}
+    # PIN 格式: crypto-user:password（用环境变量 PKCS11_PIN 提供，勿写死到代码库）
+    pin: ${PKCS11_PIN:}
+    sign-key-label: ${PKCS11_SIGN_KEY_LABEL:demo-sign-key}
+    aes-key-label: ${PKCS11_AES_KEY_LABEL:demo-aes-key}
+    signature-algorithm: ${PKCS11_SIGNATURE_ALGORITHM:SHA256withRSA}
+
+logging:
+  level:
+    com.example.hsmdemo: INFO

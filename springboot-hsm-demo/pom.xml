@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.example</groupId>
+    <artifactId>springboot-hsm-demo</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>springboot-hsm-demo</name>
+    <description>Spring Boot demo: KMS / CloudHSM JCE / PKCS#11 三种方式</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <aws.sdk.version>2.28.16</aws.sdk.version>
+        <!-- 用 source/target 而非 release（release 模式不允许 add-exports 内部包） -->
+        <maven.compiler.release></maven.compiler.release>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- AWS KMS 方式：纯 Java，无需本地库 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>kms</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+
+        <!-- STS：用于 GetCallerIdentity，页面展示当前调用的 AWS account/身份 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <version>${aws.sdk.version}</version>
+        </dependency>
+
+        <!-- BouncyCastle：仅用于给 PKCS#11 的 HSM 私钥生成自签证书，
+             以便 SunPKCS11 KeyStore 能索引到无证书的私钥（AWS 官方做法）。 -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.78.1</version>
+        </dependency>
+
+        <!--
+          CloudHSM JCE 方式：其 provider jar 由 cloudhsm-jce 包安装到 /opt/cloudhsm/java/，
+          不在 Maven 中央仓库。为保证工程在未安装该包时仍能编译，本 demo 的 JCE 实现
+          通过反射在运行时按类名加载 CloudHsmProvider（见 CloudHsmJceCryptoService），
+          因此这里【不】声明编译期依赖。真机上需保证该 jar 在运行 classpath 上，
+          启动命令见 README（-Dloader.path 或 java -cp 追加）。
+        -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- P11KeyLocator 用到 JDK 内部 PKCS#11 API，编译需放开这些内部包 -->
+                    <compilerArgs>
+                        <arg>--add-modules</arg>
+                        <arg>jdk.crypto.cryptoki</arg>
+                        <arg>--add-exports</arg>
+                        <arg>jdk.crypto.cryptoki/sun.security.pkcs11=ALL-UNNAMED</arg>
+                        <arg>--add-exports</arg>
+                        <arg>jdk.crypto.cryptoki/sun.security.pkcs11.wrapper=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
