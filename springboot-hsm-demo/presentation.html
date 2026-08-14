@@ -193,9 +193,65 @@
   </section>
 
   <!-- 9 演示 -->
+  <!-- 08 集群安装 -->
   <section class="slide">
     <div class="brandbar"></div>
-    <h2><span class="num">08</span>现场演示</h2>
+    <h2><span class="num">08</span>CloudHSM 集群安装与初始化</h2>
+    <p class="sub">从创建集群到激活可用，五步（区域以 ap-southeast-1 为例）</p>
+    <div class="grid g2">
+      <div class="card">
+        <h3>① 创建集群</h3>
+        <p>控制台 → Create Cluster，选 VPC 与可用区（<b>VPC/子网创建后不可改</b>）。建好后把集群的 Security Group 加到 EC2 安全组，放通访问。</p>
+      </div>
+      <div class="card">
+        <h3>② 建首个 HSM + 下载 CSR</h3>
+        <p>点 Initialize → 选子网建第一个 HSM 实例 → 向导提供 Cluster CSR 下载。</p>
+      </div>
+      <div class="card">
+        <h3>③ 签发证书并上传</h3>
+        <p>用自建 CA 给 CSR 签名，得到 Cluster 证书 + Issuing 证书（customerCA.crt），上传后 Upload & Initialize。</p>
+      </div>
+      <div class="card">
+        <h3>④ 装 CLI + 激活</h3>
+        <p>EC2 装 cloudhsm-cli，拷 customerCA.crt 到 <code>/opt/cloudhsm/etc/</code>，<code>configure-cli -a &lt;HSM_IP&gt;</code> → <code>cluster activate</code> 设管理员密码。</p>
+      </div>
+      <div class="card">
+        <h3>⑤ 建 crypto-user</h3>
+        <p>admin 登录后 <code>user create --username &lt;user&gt; --role crypto-user</code>，应用即可用该用户连接集群做密码操作。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 集群安装命令 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">09</span>关键命令速查</h2>
+    <p class="sub">签发证书 → 装 CLI → 激活 → 建用户</p>
+    <pre># 1) 生成客户 CA（私钥务必妥善保管）
+openssl genrsa -aes256 -out customerCA.key 2048
+openssl req -new -x509 -days 3652 -key customerCA.key -out customerCA.crt
+
+# 2) 用 CA 签集群 CSR（&lt;CLUSTER_ID&gt; 换成你的）
+openssl x509 -req -days 3652 -in &lt;CLUSTER_ID&gt;_ClusterCsr.csr \
+  -CA customerCA.crt -CAkey customerCA.key -CAcreateserial \
+  -out &lt;CLUSTER_ID&gt;_CustomerHsmCertificate.crt
+
+# 3) EC2 装 CLI + 配置信任锚与 HSM IP
+sudo yum install ./cloudhsm-cli-latest.el7.x86_64.rpm
+sudo cp customerCA.crt /opt/cloudhsm/etc/customerCA.crt
+sudo /opt/cloudhsm/bin/configure-cli -a &lt;HSM_IP&gt;
+
+# 4) 激活集群 + 建 crypto-user
+/opt/cloudhsm/bin/cloudhsm-cli interactive
+aws-cloudhsm &gt; cluster activate
+aws-cloudhsm &gt; login --username admin --role admin
+aws-cloudhsm &gt; user create --username &lt;user&gt; --role crypto-user</pre>
+  </section>
+
+  <!-- 10 现场演示 -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">10</span>现场演示</h2>
     <p class="sub">同一网页，切换 profile 即切换后端；按钮按能力自动显隐</p>
     <pre># 通用 KMS
 --spring.profiles.active=<span class="kbd">kms</span>
@@ -226,7 +282,7 @@
 
 </div>
 
-<div class="pageno" id="pageno">1 / 10</div>
+<div class="pageno" id="pageno">1 / 12</div>
 <div class="footer">AWS CloudHSM 集成方案</div>
 <div class="hint">← → 或空格翻页 · F 全屏</div>
 
