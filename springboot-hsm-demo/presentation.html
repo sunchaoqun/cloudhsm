@@ -59,6 +59,11 @@
   .big{font-size:22px;} .warn{color:var(--warn);} .ok{color:var(--ok);} .muted{color:var(--muted);}
   .pill{display:inline-block; background:#16223a; border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-size:14px; margin:4px 6px 0 0;}
   .hint{position:absolute; bottom:18px; left:50%; transform:translateX(-50%); color:#54627c; font-size:12px;}
+  a.doclink{color:var(--accent); text-decoration:none; border-bottom:1px dashed var(--accent);}
+  a.doclink:hover{color:#fff; border-bottom-color:#fff;}
+  .linkcard{background:var(--card); border:1px solid var(--accent); border-radius:12px; padding:16px 20px; margin-top:18px; font-size:16px;}
+  .linkcard a{color:var(--accent); text-decoration:none; word-break:break-all;}
+  .linkcard a:hover{color:#fff; text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -219,6 +224,10 @@
         <h3>⑤ 建 crypto-user</h3>
         <p>admin 登录后 <code>user create --username &lt;user&gt; --role crypto-user</code>，应用即可用该用户连接集群做密码操作。</p>
       </div>
+    </div>
+    <div class="linkcard">
+      📖 完整安装教程（点击直接进入 AWS 官方博客）：<br>
+      <a href="https://aws.amazon.com/cn/blogs/china/running-cloudhsm-applications-in-aws-nitro-enclaves/" target="_blank" rel="noopener">https://aws.amazon.com/cn/blogs/china/running-cloudhsm-applications-in-aws-nitro-enclaves/</a>
     </div>
   </section>
 
