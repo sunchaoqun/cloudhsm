@@ -134,10 +134,30 @@
     </p>
   </section>
 
+  <!-- FIPS vs non-FIPS -->
+  <section class="slide">
+    <div class="brandbar"></div>
+    <h2><span class="num">04</span>FIPS vs non-FIPS 集群模式</h2>
+    <p class="sub">创建集群时必须二选一，<span class="warn">建好后不可更改</span></p>
+    <table>
+      <tr><th>特性</th><th>FIPS</th><th>non-FIPS</th></tr>
+      <tr><td>合规认证</td><td class="y">✔ FIPS 140-2 Level 3</td><td class="n">✘ 无</td></tr>
+      <tr><td>KMS Custom Key Store</td><td class="y">✔ 支持</td><td class="n">✘ 不支持</td></tr>
+      <tr><td>RSA / AES / ECDSA P-256</td><td class="y">✔</td><td class="y">✔</td></tr>
+      <tr><td>secp256k1（BTC / ETH）</td><td class="n">✘</td><td class="y">✔</td></tr>
+      <tr><td>ED25519（Solana / SSH）</td><td class="n">✘</td><td class="y">✔</td></tr>
+      <tr><td>SM2 / SM4（国密）</td><td class="n">✘</td><td class="y">✔</td></tr>
+    </table>
+    <p class="muted" style="margin-top:16px;">
+      <span class="warn">关键矛盾</span>：secp256k1 需要 non-FIPS，而 KMS Custom Key Store 需要 FIPS —— <b>两者不可兼得</b>。<br>
+      <b>加密货币场景</b>必须选 <b>non-FIPS + 直连（JCE / PKCS#11）</b>，不走 KMS。
+    </p>
+  </section>
+
   <!-- 5 KMS + 跨账号 -->
   <section class="slide">
     <div class="brandbar"></div>
-    <h2><span class="num">04</span>KMS 与跨账号访问</h2>
+    <h2><span class="num">05</span>KMS 与跨账号访问</h2>
     <div class="grid g2">
       <div class="card">
         <h3>KMS Custom Key Store</h3>
@@ -158,7 +178,7 @@
   <!-- 6 JCE -->
   <section class="slide">
     <div class="brandbar"></div>
-    <h2><span class="num">05</span>CloudHSM JCE Provider</h2>
+    <h2><span class="num">06</span>CloudHSM JCE Provider</h2>
     <p class="sub">AWS 官方推荐的 Java 接入方式，功能最完整</p>
     <ul>
       <li>通过 CloudHSM 自家 JCE Provider 直连 HSM，密钥运算全部在硬件内完成，私钥永不出 HSM</li>
@@ -172,7 +192,7 @@
   <!-- 7 PKCS11 -->
   <section class="slide">
     <div class="brandbar"></div>
-    <h2><span class="num">06</span>CloudHSM PKCS#11（标准接口）</h2>
+    <h2><span class="num">07</span>CloudHSM PKCS#11（标准接口）</h2>
     <p class="sub">行业标准 PKCS#11，跨 HSM 厂商可移植；本方案用 JDK 内置 SunPKCS11 对接</p>
     <ul>
       <li><b>对称（AES）</b>：走标准 KeyStore，用 AES-CBC（SunPKCS11 与 CloudHSM 都稳定支持传入 IV）</li>
@@ -186,7 +206,7 @@
   <!-- 8 关键技术难点与解法 -->
   <section class="slide">
     <div class="brandbar"></div>
-    <h2><span class="num">07</span>关键难点与解法</h2>
+    <h2><span class="num">08</span>关键难点与解法</h2>
     <table>
       <tr><th>现象</th><th>根因</th><th>解法</th></tr>
       <tr><td>KMS-CKS 不能签名</td><td>Custom Key Store 只支持对称密钥</td><td>签名走 JCE / PKCS#11</td></tr>
@@ -201,7 +221,7 @@
   <!-- 08 集群安装 -->
   <section class="slide">
     <div class="brandbar"></div>
-    <h2><span class="num">08</span>CloudHSM 集群安装与初始化</h2>
+    <h2><span class="num">09</span>CloudHSM 集群安装与初始化</h2>
     <p class="sub">从创建集群到激活可用，五步（区域以 ap-southeast-1 为例）</p>
     <div class="grid g2">
       <div class="card">
@@ -234,7 +254,7 @@
   <!-- 09 集群安装命令 -->
   <section class="slide">
     <div class="brandbar"></div>
-    <h2><span class="num">09</span>关键命令速查</h2>
+    <h2><span class="num">10</span>关键命令速查</h2>
     <p class="sub">签发证书 → 装 CLI → 激活 → 建用户</p>
     <pre># 1) 生成客户 CA（私钥务必妥善保管）
 openssl genrsa -aes256 -out customerCA.key 2048
@@ -260,7 +280,7 @@ aws-cloudhsm &gt; user create --username &lt;user&gt; --role crypto-user</pre>
   <!-- 10 现场演示 -->
   <section class="slide">
     <div class="brandbar"></div>
-    <h2><span class="num">10</span>现场演示</h2>
+    <h2><span class="num">11</span>现场演示</h2>
     <p class="sub">同一网页，切换 profile 即切换后端；按钮按能力自动显隐</p>
     <pre># 通用 KMS
 --spring.profiles.active=<span class="kbd">kms</span>
@@ -291,7 +311,7 @@ aws-cloudhsm &gt; user create --username &lt;user&gt; --role crypto-user</pre>
 
 </div>
 
-<div class="pageno" id="pageno">1 / 12</div>
+<div class="pageno" id="pageno">1 / 13</div>
 <div class="footer">AWS CloudHSM 集成方案</div>
 <div class="hint">← → 或空格翻页 · F 全屏</div>
 
